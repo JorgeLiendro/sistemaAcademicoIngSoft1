@@ -68,9 +68,14 @@
             <h2 class="serif fw-bold mb-1"><?= htmlspecialchars($materia['nombre']); ?></h2>
             <p class="text-muted mb-0"><i class="fas fa-chalkboard-teacher me-2 text-danger"></i> Gestión Docente de Asignatura</p>
         </div>
-        <a href="index.php?controller=Docente&action=dashboard" class="btn btn-outline-dark rounded-pill px-4">
-            <i class="fas fa-chevron-left me-2"></i> Volver
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <a href="index.php?controller=Docente&action=tomarAsistencia&id_materia=<?= $materia['id_materia']; ?>" class="btn btn-success rounded-pill px-4">
+                <i class="fas fa-clipboard-check me-2"></i> Tomar Asistencia
+            </a>
+            <a href="index.php?controller=Docente&action=dashboard" class="btn btn-outline-dark rounded-pill px-4">
+                <i class="fas fa-chevron-left me-2"></i> Volver
+            </a>
+        </div>
     </div>
 
     <ul class="nav nav-pills task-nav-pills" id="mainTabs" role="tablist">
@@ -78,7 +83,7 @@
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-tareas"><i class="fas fa-tasks me-2"></i> Tareas</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-entregas"><i class="fas fa-file-upload me-2"></i> Entregas</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-alumnos"><i class="fas fa-users me-2"></i> Alumnos</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-asistencia"><i class="fas fa-calendar-check me-2"></i> Asistencia</button></li>
+        
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-evaluaciones"><i class="fas fa-star me-2"></i> Evaluaciones</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-reportes"><i class="fas fa-chart-line me-2"></i> Reportes</button></li>
     </ul>
@@ -114,10 +119,19 @@
                             <?php if(!empty($materiales)): foreach($materiales as $m): ?>
                                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-light-red p-2 rounded-3 me-3 text-center" style="width:40px"><i class="fas <?= $m['tipo'] === 'Video' ? 'fa-play' : 'fa-file-alt' ?>"></i></div>
+                                        <div class="bg-light-red p-2 rounded-3 me-3 text-center" style="width:40px"><i class="fas <?= $m['tipo'] === 'Video' ? 'fa-play' : ($m['tipo'] === 'Enlace' ? 'fa-link' : 'fa-file-alt') ?>"></i></div>
                                         <div><h6 class="mb-0 fw-bold"><?= $m['titulo'] ?></h6><small class="text-muted"><?= $m['tipo'] ?></small></div>
                                     </div>
-                                    <a href="uploads/<?= $m['ruta'] ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill">Ver</a>
+                                    <div style="display: flex; gap: 8px;">
+                                        <?php if ($m['tipo'] === 'Enlace'): ?>
+                                            <a href="<?= $m['ruta'] ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill"><i class="fas fa-external-link-alt me-1"></i> Ir</a>
+                                        <?php elseif ($m['tipo'] === 'Video'): ?>
+                                            <a href="<?= $m['ruta'] ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill"><i class="fas fa-play me-1"></i> Ver</a>
+                                        <?php else: ?>
+                                            <a href="index.php?controller=Docente&action=verMaterial&id_material=<?= $m['id_material'] ?>&id_materia=<?= $materia['id_materia'] ?>" class="btn btn-sm btn-outline-dark rounded-pill"><i class="fas fa-eye me-1"></i> Ver</a>
+                                            <a href="index.php?controller=Docente&action=descargarMaterial&id_material=<?= $m['id_material'] ?>&id_materia=<?= $materia['id_materia'] ?>" class="btn btn-sm btn-outline-primary rounded-pill"><i class="fas fa-download me-1"></i> Descargar</a>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endforeach; else: echo '<p class="p-4 text-center">Sin materiales.</p>'; endif; ?>
                         </div>

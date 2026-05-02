@@ -506,6 +506,106 @@ class DocenteController {
         }
     }
 
+    public function tomarAsistencia() {
+        if ($_SESSION['rol'] !== 'Docente') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+        
+        $id_materia = $_GET['id_materia'] ?? null;
+
+        if (!$id_materia) {
+            header('Location: index.php?controller=Docente&action=dashboard');
+            exit();
+        }
+
+        // Obtener datos de la materia y estudiantes
+        $materia = $this->model->obtenerMateria($id_materia);
+        $estudiantes = $this->model->obtenerEstudiantesMateria($id_materia);
+
+        if (!$materia) {
+            $_SESSION['error'] = "No se encontró la materia";
+            header('Location: index.php?controller=Docente&action=dashboard');
+            exit();
+        }
+
+        require_once 'views/docente/tomar_asistencia.php';
+    }
+
+    public function verMaterial() {
+        if ($_SESSION['rol'] !== 'Docente') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+        
+        $id_material = $_GET['id_material'] ?? null;
+        $id_materia = $_GET['id_materia'] ?? null;
+
+        if (!$id_material || !$id_materia) {
+            header('Location: index.php?controller=Docente&action=dashboard');
+            exit();
+        }
+
+        // Obtener datos del material
+        $db = (new Database())->connect();
+        $stmt = $db->prepare("SELECT * FROM Material WHERE id_material = ? AND id_materia = ?");
+        $stmt->execute([$id_material, $id_materia]);
+        $material = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$material) {
+            $_SESSION['error'] = "Material no encontrado";
+            header('Location: index.php?controller=Docente&action=gestionTareas&id_materia=' . $id_materia);
+            exit();
+        }
+
+        // Obtener materia para el header
+        $materia = $this->model->obtenerMateria($id_materia);
+
+        // Cargar la vista de visualización
+        require_once 'views/docente/ver_material.php';
+    }
+
+    public function descargarMaterial() {
+        if ($_SESSION['rol'] !== 'Docente') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+        
+        $id_material = $_GET['id_material'] ?? null;
+        $id_materia = $_GET['id_materia'] ?? null;
+
+        if (!$id_material || !$id_materia) {
+            die('Parámetros inválidos');
+        }
+
+        // Obtener datos del material
+        $db = (new Database())->connect();
+        $stmt = $db->prepare("SELECT * FROM Material WHERE id_material = ? AND id_materia = ?");
+        $stmt->execute([$id_material, $id_materia]);
+        $material = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$material) {
+            die('Material no encontrado');
+        }
+
+        $ruta_completa = 'uploads/materiales/' . $material['ruta'];
+
+        if (!file_exists($ruta_completa)) {
+            die('Archivo no encontrado');
+        }
+
+        // Descargar archivo
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($material['ruta']) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($ruta_completa));
+        readfile($ruta_completa);
+        exit;
+    }
+
     public function editarFechaTarea() {
         if ($_SESSION['rol'] !== 'Docente') {
             header('Location: index.php?controller=Auth&action=login');
