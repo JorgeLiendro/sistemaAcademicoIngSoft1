@@ -1,0 +1,2 @@
+aqui añadir el sql que se debe de aumentar 
+para las nuevas funcionalidades del sistema
