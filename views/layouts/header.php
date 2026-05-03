@@ -271,7 +271,8 @@ if (isset($_SESSION['id_usuario'])) {
                     <a href="index.php?controller=Admin&action=gestionMaterias" class="nav-item-link"><i class="fas fa-book"></i> Materias</a>
                     <a href="index.php?controller=Admin&action=gestionCarreras" class="nav-item-link"><i class="fas fa-graduation-cap"></i> Carreras</a>
                     <a href="index.php?controller=Admin&action=gestionPeriodos" class="nav-item-link"><i class="fas fa-calendar-alt"></i> Periodos Académicos</a>
-                <?php endif; ?>
+                    <a href="index.php?controller=Admin&action=reportes" class="nav-item-link"><i class="fas fa-chart-bar"></i> Reportes</a>
+                    <?php endif; ?>
 
                 <?php if($_SESSION['rol'] === 'Docente'): ?>
                     <div class="sidebar-section-title">DOCENCIA</div>

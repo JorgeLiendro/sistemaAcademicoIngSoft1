@@ -406,5 +406,89 @@ class AdminController {
         header('Location: index.php?controller=Admin&action=gestionPeriodos');
         exit();
     }
+
+    public function reportes() {
+        if ($_SESSION['rol'] !== 'Administrador') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+
+        require_once 'views/admin/reportes.php';
+    }
+
+    public function generarReporte() {
+        if ($_SESSION['rol'] !== 'Administrador') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+
+        $tipo = $_GET['tipo'] ?? null;
+
+        if (!$tipo) {
+            header('Location: index.php?controller=Admin&action=reportes');
+            exit();
+        }
+
+        switch ($tipo) {
+            case 'desempenoCarrera':
+                $this->reporteDesempenoCarrera();
+                break;
+            case 'docentes':
+                $this->reporteDocentes();
+                break;
+            case 'asistencia':
+                $this->reporteAsistencia();
+                break;
+            case 'calificaciones':
+                $this->reporteCalificaciones();
+                break;
+            case 'inscripciones':
+                $this->reporteInscripciones();
+                break;
+            case 'evaluacionesDocentes':
+                $this->reporteEvaluacionesDocentes();
+                break;
+            default:
+                header('Location: index.php?controller=Admin&action=reportes');
+                exit();
+        }
+    }
+
+    private function reporteDesempenoCarrera() {
+        $carreras = $this->model->obtenerTodasCarreras();
+        $reporteData = [];
+        
+        foreach ($carreras as $carrera) {
+            $stats = $this->model->obtenerEstadisticasCarrera($carrera['id_carrera']);
+            $reporteData[$carrera['nombre']] = $stats;
+        }
+
+        require_once 'views/admin/reportes/desempenoCarrera.php';
+    }
+
+    private function reporteDocentes() {
+        $docentes = $this->model->obtenerEstadisticasDocentes();
+        require_once 'views/admin/reportes/docentes.php';
+    }
+
+    private function reporteAsistencia() {
+        $asistencia = $this->model->obtenerEstadisticasAsistencia();
+        require_once 'views/admin/reportes/asistencia.php';
+    }
+
+    private function reporteCalificaciones() {
+        $calificaciones = $this->model->obtenerEstadisticasCalificaciones();
+        require_once 'views/admin/reportes/calificaciones.php';
+    }
+
+    private function reporteInscripciones() {
+        $inscripciones = $this->model->obtenerEstadisticasInscripciones();
+        require_once 'views/admin/reportes/inscripciones.php';
+    }
+
+    private function reporteEvaluacionesDocentes() {
+        $evaluaciones = $this->model->obtenerEstadisticasEvaluaciones();
+        require_once 'views/admin/reportes/evaluacionesDocentes.php';
+    }
 }
 ?>

@@ -459,5 +459,145 @@ class AdminModel {
         $stmt = $this->db->prepare("DELETE FROM periodo_academico WHERE id_periodo = ?");
         return $stmt->execute([$id_periodo]);
     }
+
+    // ===== MÉTODOS PARA REPORTES =====
+
+    public function obtenerEstadisticasCarrera($id_carrera) {
+        // Total estudiantes
+        $stmt = $this->db->prepare("SELECT COUNT(*) as total FROM estudiante WHERE id_carrera = ?");
+        $stmt->execute([$id_carrera]);
+        $total_estudiantes = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+
+        // Promedio de calificaciones
+        $stmt = $this->db->prepare("
+            SELECT AVG(e.calificacion) as promedio
+            FROM entrega e
+            JOIN tarea t ON e.id_tarea = t.id_tarea
+            JOIN materia m ON t.id_materia = m.id_materia
+            WHERE m.id_carrera = ?
+        ");
+        $stmt->execute([$id_carrera]);
+        $promedio = $stmt->fetch(PDO::FETCH_ASSOC)['promedio'] ?? 0;
+
+        // Mejores estudiantes
+        $stmt = $this->db->prepare("
+            SELECT u.nombre_completo, AVG(e.calificacion) as promedio
+            FROM estudiante est
+            JOIN usuario u ON est.id_usuario = u.id_usuario
+            LEFT JOIN entrega e ON est.id_estudiante = e.id_estudiante
+            WHERE est.id_carrera = ?
+            GROUP BY est.id_estudiante
+            ORDER BY promedio DESC
+            LIMIT 5
+        ");
+        $stmt->execute([$id_carrera]);
+        $mejores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'total_estudiantes' => $total_estudiantes,
+            'promedio_general' => round($promedio, 2),
+            'mejores_estudiantes' => $mejores
+        ];
+    }
+
+    public function obtenerEstadisticasDocentes() {
+        $stmt = $this->db->prepare("
+            SELECT 
+                u.nombre_completo,
+                COUNT(DISTINCT m.id_materia) as materias,
+                COUNT(DISTINCT i.id_estudiante) as estudiantes_total,
+                AVG(ed.puntuacion) as promedio_evaluacion
+            FROM docente d
+            JOIN usuario u ON d.id_usuario = u.id_usuario
+            LEFT JOIN materia m ON d.id_docente = m.id_docente
+            LEFT JOIN inscripcion i ON m.id_materia = i.id_materia
+            LEFT JOIN evaluacion_docente ed ON d.id_docente = ed.id_docente
+            GROUP BY d.id_docente
+            ORDER BY promedio_evaluacion DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function obtenerEstadisticasAsistencia() {
+        $stmt = $this->db->prepare("
+            SELECT 
+                m.nombre as materia,
+                COUNT(CASE WHEN a.estado = 'Presente' THEN 1 END) as presentes,
+                COUNT(CASE WHEN a.estado = 'Ausente' THEN 1 END) as ausentes,
+                COUNT(CASE WHEN a.estado = 'Licencia' THEN 1 END) as licencias,
+                COUNT(CASE WHEN a.estado = 'Retraso' THEN 1 END) as retrasos,
+                COUNT(*) as total,
+                ROUND(COUNT(CASE WHEN a.estado = 'Presente' THEN 1 END) * 100 / COUNT(*), 2) as porcentaje_asistencia
+            FROM asistencia a
+            JOIN materia m ON a.id_materia = m.id_materia
+            GROUP BY a.id_materia
+            ORDER BY porcentaje_asistencia DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function obtenerEstadisticasCalificaciones() {
+        $stmt = $this->db->prepare("
+            SELECT 
+                m.nombre as materia,
+                COUNT(*) as total_entregas,
+                AVG(e.calificacion) as promedio,
+                MIN(e.calificacion) as minima,
+                MAX(e.calificacion) as maxima,
+                COUNT(CASE WHEN e.calificacion >= 90 THEN 1 END) as excelente,
+                COUNT(CASE WHEN e.calificacion BETWEEN 80 AND 89 THEN 1 END) as bueno,
+                COUNT(CASE WHEN e.calificacion BETWEEN 70 AND 79 THEN 1 END) as regular,
+                COUNT(CASE WHEN e.calificacion < 70 THEN 1 END) as insuficiente
+            FROM entrega e
+            JOIN tarea t ON e.id_tarea = t.id_tarea
+            JOIN materia m ON t.id_materia = m.id_materia
+            GROUP BY t.id_materia
+            ORDER BY promedio DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function obtenerEstadisticasInscripciones() {
+        $stmt = $this->db->prepare("
+            SELECT 
+                m.nombre as materia,
+                COUNT(i.id_inscripcion) as estudiantes_inscritos,
+                COUNT(CASE WHEN i.estado = 'Activa' THEN 1 END) as activos,
+                COUNT(CASE WHEN i.estado = 'Retirado' THEN 1 END) as retirados,
+                u.nombre_completo as docente
+            FROM materia m
+            LEFT JOIN inscripcion i ON m.id_materia = i.id_materia
+            LEFT JOIN docente d ON m.id_docente = d.id_docente
+            LEFT JOIN usuario u ON d.id_usuario = u.id_usuario
+            GROUP BY m.id_materia
+            ORDER BY estudiantes_inscritos DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function obtenerEstadisticasEvaluaciones() {
+        $stmt = $this->db->prepare("
+            SELECT 
+                d.id_docente,
+                u.nombre_completo,
+                COUNT(ed.id_evaluacion) as total_evaluaciones,
+                AVG(ed.puntuacion) as promedio,
+                COUNT(CASE WHEN ed.puntuacion = 5 THEN 1 END) as cinco_estrellas,
+                COUNT(CASE WHEN ed.puntuacion = 4 THEN 1 END) as cuatro_estrellas,
+                COUNT(CASE WHEN ed.puntuacion = 3 THEN 1 END) as tres_estrellas,
+                COUNT(CASE WHEN ed.puntuacion <= 2 THEN 1 END) as dos_estrellas_menos
+            FROM docente d
+            JOIN usuario u ON d.id_usuario = u.id_usuario
+            LEFT JOIN evaluacion_docente ed ON d.id_docente = ed.id_docente
+            GROUP BY d.id_docente
+            ORDER BY promedio DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 ?>
