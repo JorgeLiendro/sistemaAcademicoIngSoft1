@@ -392,7 +392,7 @@
                                value="Presente" checked>
                         <label for="presente_<?= $estudiante['id_estudiante']; ?>" class="btn-attendance btn-present">
                             <span>P</span>
-                            <span class="btn-label">Presente</span>
+                            
                         </label>
 
                         <input type="radio" id="ausente_<?= $estudiante['id_estudiante']; ?>" 
@@ -400,7 +400,7 @@
                                value="Ausente">
                         <label for="ausente_<?= $estudiante['id_estudiante']; ?>" class="btn-attendance btn-absent">
                             <span>F</span>
-                            <span class="btn-label">Falta</span>
+                            
                         </label>
 
                         <input type="radio" id="licencia_<?= $estudiante['id_estudiante']; ?>" 
@@ -408,7 +408,7 @@
                                value="Licencia">
                         <label for="licencia_<?= $estudiante['id_estudiante']; ?>" class="btn-attendance btn-leave">
                             <span>L</span>
-                            <span class="btn-label">Licencia</span>
+                            
                         </label>
                     </div>
                 </div>

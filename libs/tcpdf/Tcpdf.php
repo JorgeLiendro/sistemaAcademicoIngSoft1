@@ -47,6 +47,7 @@ use Com\Tecnick\Pdf\Exception as PdfException;
  *
  * @SuppressWarnings("PHPMD.DepthOfInheritance")
  */
+//class Tcpdf extends \Com\Tecnick\Pdf\ClassObjects
 class Tcpdf extends \Com\Tecnick\Pdf\ClassObjects
 {
     /**

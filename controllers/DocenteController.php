@@ -1,4 +1,5 @@
 <?php
+
 class DocenteController {
 
     private $model;
@@ -266,7 +267,9 @@ class DocenteController {
         $reportes['estudiantes'] = is_array($reportes['estudiantes']) ? $reportes['estudiantes'] : [];
         
         // Configurar PDF
-        require_once 'libs/tcpdf/Tcpdf.php';
+        //
+        //require_once 'libs/tcpdf/Tcpdf.php';
+        require_once 'vendor/autoload.php';
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         
         // Configuración del documento
