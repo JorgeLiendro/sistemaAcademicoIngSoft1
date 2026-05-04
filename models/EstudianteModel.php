@@ -169,6 +169,149 @@ class EstudianteModel {
         return $stmt->execute([$id_estudiante, $id_docente, $id_materia, $puntuacion, $comentario]);
     }
 
+
+        /////examen///
+    // 1. Evita que el alumno rinda el examen dos veces
+    public function verificarExamenHecho($id_usuario, $id_evaluacion) {
+        $sql = "SELECT COUNT(*) FROM resultados WHERE usuario_id = ? AND evaluacion_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id_usuario, $id_evaluacion]);
+        return $stmt->fetchColumn() > 0;
+    }
+
+    // 2. Obtiene el examen con sus preguntas y opciones para la vista[cite: 2, 3]
+    public function obtenerDetalleExamen($id_evaluacion) {
+        // Obtenemos la cabecera
+        $sql = "SELECT * FROM evaluaciones WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id_evaluacion]);
+        $examen = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($examen) {
+            // Obtenemos preguntas y sus opciones
+            $sqlPreguntas = "SELECT * FROM preguntas WHERE evaluacion_id = ?";
+            $stmtP = $this->db->prepare($sqlPreguntas);
+            $stmtP->execute([$id_evaluacion]);
+            $preguntas = $stmtP->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($preguntas as &$pregunta) {
+                $sqlOpciones = "SELECT * FROM opciones WHERE pregunta_id = ?";
+                $stmtO = $this->db->prepare($sqlOpciones);
+                $stmtO->execute([$pregunta['id']]);
+                $pregunta['opciones'] = $stmtO->fetchAll(PDO::FETCH_ASSOC);
+            }
+            $examen['preguntas'] = $preguntas;
+        }
+        return $examen;
+    }
+
+    // 3. Valida si la nota ya puede ser vista (Por tiempo o por el docente)
+    public function obtenerNotaSiEstaPublicada($id_evaluacion, $id_usuario) {
+        $sql = "SELECT r.nota, e.fecha_fin, e.publicacion_forzada, e.id_materia 
+                FROM resultados r
+                JOIN evaluaciones e ON r.evaluacion_id = e.id
+                WHERE r.evaluacion_id = ? AND r.usuario_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id_evaluacion, $id_usuario]);
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$resultado) return null;
+
+        $ahora = date('Y-m-d H:i:s');
+        // Si ya pasó la fecha fin o el docente forzó la publicación, es visible[cite: 2]
+        $resultado['visible'] = ($ahora > $resultado['fecha_fin'] || $resultado['publicacion_forzada'] == 1);
+        
+        return $resultado;
+    }
+    // 4. procesar calificacion
+        public function procesarCalificacion($id_usuario, $id_evaluacion, $respuestas) {
+        try {
+            $this->db->beginTransaction();
+
+            $puntos_ganados = 0;
+            $total_preguntas = count($respuestas);
+
+            foreach ($respuestas as $id_pregunta => $id_opcion_seleccionada) {
+                // Verificamos si la opción seleccionada es la correcta en la BD
+                $sql = "SELECT es_correcta FROM opciones WHERE id = ? AND pregunta_id = ?";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([$id_opcion_seleccionada, $id_pregunta]);
+                
+                if ($stmt->fetchColumn() == 1) {
+                    $puntos_ganados++;
+                }
+            }
+
+            // Cálculo de nota (ejemplo sobre 100 puntos)
+            $nota_final = ($total_preguntas > 0) ? ($puntos_ganados / $total_preguntas) * 100 : 0;
+
+            // Insertar el resultado final
+            $sqlInsert = "INSERT INTO resultados (usuario_id, evaluacion_id, nota, fecha_envio) 
+                        VALUES (?, ?, ?, NOW())";
+            $stmtInsert = $this->db->prepare($sqlInsert);
+            $stmtInsert->execute([$id_usuario, $id_evaluacion, $nota_final]);
+
+            $this->db->commit();
+            return $nota_final;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            error_log("Error al calificar: " . $e->getMessage());
+            return false;
+        }
+    }
+
+        public function iniciarIntento($id_evaluacion, $id_estudiante) {
+        $stmt = $this->db->prepare("
+            INSERT INTO intentos (id_evaluacion, id_estudiante, fecha_inicio)
+            VALUES (?, ?, NOW())
+        ");
+        $stmt->execute([$id_evaluacion, $id_estudiante]);
+
+        return $this->db->lastInsertId();
+    }
+    public function guardarRespuesta($id_intento, $id_pregunta, $id_opcion) {
+        $stmt = $this->db->prepare("
+            INSERT INTO respuestas (id_intento, id_pregunta, id_opcion)
+            VALUES (?, ?, ?)
+        ");
+        return $stmt->execute([$id_intento, $id_pregunta, $id_opcion]);
+    }
+    public function calificarExamen($id_intento) {
+
+        $sql = "
+            SELECT r.id_opcion, o.es_correcta
+            FROM respuestas r
+            JOIN opciones o ON r.id_opcion = o.id_opcion
+            WHERE r.id_intento = ?
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id_intento]);
+        $respuestas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $correctas = 0;
+        $total = count($respuestas);
+
+        foreach ($respuestas as $r) {
+            if ($r['es_correcta'] == 1) {
+                $correctas++;
+            }
+        }
+
+        $nota = ($total > 0) ? ($correctas / $total) * 100 : 0;
+
+        // Guardar nota
+        $stmt = $this->db->prepare("
+            UPDATE intentos
+            SET nota = ?, fecha_fin = NOW(), estado = 'Finalizado'
+            WHERE id_intento = ?
+        ");
+        $stmt->execute([$nota, $id_intento]);
+
+        return $nota;
+    }
+///-------
+    
     public function obtenerTareasPendientes($id_estudiante) {
         $stmt = $this->db->prepare("
             SELECT t.*, m.nombre as materia_nombre
