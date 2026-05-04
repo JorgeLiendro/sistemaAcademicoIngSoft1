@@ -260,6 +260,71 @@ class EstudianteController {
         }
     }
 
+        ////// EVALUACION////
+    // Dentro de la clase EstudianteController
+    public function resolverEvaluacion() {
+        if ($_SESSION['rol'] !== 'Estudiante') { header('Location: index.php'); exit(); }
+        
+        $id_evaluacion = $_GET['id_evaluacion'];
+        // Validar si el estudiante ya resolvió este examen antes
+        $ya_realizado = $this->model->verificarExamenHecho($_SESSION['id_usuario'], $id_evaluacion);
+        
+        if ($ya_realizado) {
+            $_SESSION['error'] = "Ya has completado esta evaluación.";
+            header("Location: " . $_SERVER['HTTP_REFERER']);
+            exit();
+        }
+        
+        $examen = $this->model->obtenerDetalleExamen($id_evaluacion);
+        require_once 'views/estudiante/resolver_examen.php';
+    }
+
+
+    public function verResultado() {
+        // 1. Capturamos el ID que viene en la URL (?id=...)
+        $id_evaluacion = $_GET['id'];
+        $id_usuario = $_SESSION['id_usuario'];
+
+        if (!$id_evaluacion) {
+            header("Location: index.php?controller=Estudiante&action=materias");
+            exit();
+        }
+
+        // 2. Cargamos la vista. Al estar en el mismo ámbito, 
+        // la variable $id_evaluacion ahora será visible para el archivo PHP de la vista.
+        require_once 'views/estudiante/ver_resultado.php';
+    }
+
+    public function enviarExamen() {
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $id_usuario = $_SESSION['id_usuario']; // ID del estudiante en sesión
+            $id_evaluacion = $_POST['id_evaluacion'];
+            $respuestas = $_POST['respuestas']; // El array [id_pregunta => id_opcion]
+
+            // 1. Verificar que no lo haya hecho ya
+            if ($this->model->verificarExamenHecho($id_usuario, $id_evaluacion)) {
+                $_SESSION['error'] = "Ya has rendido esta evaluación anteriormente.";
+                header("Location: index.php?controller=Estudiante&action=materias");
+                exit();
+            }
+
+            // 2. Procesar la calificación en el modelo
+            $nota = $this->model->procesarCalificacion($id_usuario, $id_evaluacion, $respuestas);
+
+            if ($nota !== false) {
+                $_SESSION['exito'] = "Examen enviado correctamente. Tu nota se publicará al finalizar el tiempo.";
+                header("Location: index.php?controller=Estudiante&action=verResultado&id=" . $id_evaluacion);
+            } else {
+                $_SESSION['error'] = "Hubo un error al procesar tu examen.";
+                header("Location: index.php?controller=Estudiante&action=materias");
+            }
+            exit();
+        }
+    }
+
+    ///////
+
+    
     // NUEVA FUNCIÓN: Descargar Boletín en PDF usando TCPDF
     public function descargarBoletinPDF() {
         if ($_SESSION['rol'] !== 'Estudiante') {
