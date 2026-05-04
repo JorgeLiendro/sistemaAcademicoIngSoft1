@@ -13,3 +13,42 @@ CREATE TABLE calificacion_final (
     FOREIGN KEY (id_estudiante) REFERENCES Estudiante(id_estudiante) ON DELETE CASCADE,
     FOREIGN KEY (id_materia) REFERENCES Materia(id_materia) ON DELETE CASCADE
 );
+-- EVALUACION
+-- Tabla de Exámenes
+CREATE TABLE examen (
+    id_examen INT PRIMARY KEY AUTO_INCREMENT,
+    titulo VARCHAR(255),
+    descripcion TEXT,
+    duracion_minutos INT, -- Ejemplo: 45
+    fecha_limite DATETIME
+);
+
+-- Tabla de Preguntas
+CREATE TABLE pregunta (
+    id_pregunta INT PRIMARY KEY AUTO_INCREMENT,
+    id_examen INT,
+    texto_pregunta TEXT,
+    puntos INT DEFAULT 1,
+    FOREIGN KEY (id_examen) REFERENCES examen(id_examen)
+);
+
+-- Tabla de Opciones (Selección Múltiple)
+CREATE TABLE opcion_respuesta (
+    id_opcion INT PRIMARY KEY AUTO_INCREMENT,
+    id_pregunta INT,
+    texto_opcion TEXT,
+    es_correcta BOOLEAN DEFAULT FALSE, -- Crucial para la auto-calificación
+    FOREIGN KEY (id_pregunta) REFERENCES pregunta(id_pregunta)
+);
+
+-- Tabla de Intentos/Resultados
+CREATE TABLE examen_intento (
+    id_intento INT PRIMARY KEY AUTO_INCREMENT,
+    id_examen INT,
+    id_estudiante INT,
+    fecha_inicio DATETIME,
+    fecha_fin DATETIME,
+    calificacion DECIMAL(5,2),
+    FOREIGN KEY (id_examen) REFERENCES examen(id_examen)
+);
+
