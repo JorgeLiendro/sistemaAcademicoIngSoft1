@@ -143,59 +143,116 @@ class DocenteController {
             exit();
         }
     }
+    ////// EVALUACIONES//////
+    // Dentro de la clase DocenteController
+    public function gestionarEvaluaciones() {
+        $this->verificarSesionDocente();
+        $id_materia = $_GET['id_materia'];
+        
+        // El modelo debe tener una función para traer los exámenes de esa materia
+        $evaluaciones = $this->model->obtenerEvaluacionesMateria($id_materia);
+        require_once 'views/docente/evaluaciones.php';
+    }
 
-    public function subirMaterial() {
+    public function guardarExamenDinamico() {
+        $this->verificarSesionDocente();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Aquí usas la lógica de transacciones PDO que vimos antes
+            // vinculando el id_materia que viene del formulario
+            if ($this->model->crearExamenCompleto($_POST)) {
+                $_SESSION['mensaje'] = "Examen creado exitosamente";
+            }
+            header("Location: index.php?controller=Docente&action=gestionarEvaluaciones&id_materia=" . $_POST['id_materia']);
+        }
+    }
+
+    public function publicarCalificaciones() {
+        $this->verificarSesionDocente();
+        $id_evaluacion = $_GET['id_evaluacion'];
+        // Cambia el estado en la BD para que el alumno pueda ver su nota
+        $this->model->alternarVisibilidadNotas($id_evaluacion, 1);
+        header("Location: " . $_SERVER['HTTP_REFERER']);
+    }
+
+    private function verificarSesionDocente() {
         if ($_SESSION['rol'] !== 'Docente') {
             header('Location: index.php?controller=Auth&action=login');
             exit();
         }
-        
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id_materia = $_POST['id_materia'];
-            $titulo = $_POST['titulo'];
-            $descripcion = $_POST['descripcion'];
-            $tipo = $_POST['tipo'];
+    }
+    public function verSeguimiento() {
+            $id_evaluacion = $_GET['id'];
             
-            // Manejo de archivos o URL según el tipo
-            $ruta = '';
+            if (!$id_evaluacion) {
+                header("Location: index.php?controller=Docente&action=dashboard");
+                exit();
+            }
+    
+            $examen = $this->model->obtenerExamenPorId($id_evaluacion); 
+            $resultados = $this->model->obtenerResultadosExamen($id_evaluacion);
             
-            if ($tipo === 'Enlace') {
-                $ruta = $_POST['url'];
-            } else {
+            // Validación de seguridad para la vista
+            if (!$examen) {
+                $_SESSION['error'] = "El examen solicitado no existe.";
+                header("Location: index.php?controller=Docente&action=dashboard");
+                exit();
+            }
+            
+            require_once 'views/docente/gestion_evaluacion.php';
+        }
+    //-------------
+        public function subirMaterial() {
+            if ($_SESSION['rol'] !== 'Docente') {
+                header('Location: index.php?controller=Auth&action=login');
+                exit();
+            }
+            
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $id_materia = $_POST['id_materia'];
+                $titulo = $_POST['titulo'];
+                $descripcion = $_POST['descripcion'];
+                $tipo = $_POST['tipo'];
+                
+                // Manejo de archivos o URL según el tipo
+                $ruta = '';
+                
+                if ($tipo === 'Enlace') {
+                    $ruta = $_POST['url'];
+                } else {
                 // Procesar archivo subido
-                if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] === UPLOAD_ERR_OK) {
-                    $uploadDir = 'uploads/materiales/';
-                    if (!file_exists($uploadDir)) {
-                        mkdir($uploadDir, 0777, true);
-                    }
-                    
-                    $extension = pathinfo($_FILES['archivo']['name'], PATHINFO_EXTENSION);
-                    $nombreArchivo = uniqid() . '.' . $extension;
-                    $rutaCompleta = $uploadDir . $nombreArchivo;
-                    
-                    if (move_uploaded_file($_FILES['archivo']['tmp_name'], $rutaCompleta)) {
-                        $ruta = $nombreArchivo; // Guardamos solo el nombre del archivo
+                    if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] === UPLOAD_ERR_OK) {
+                        $uploadDir = 'uploads/materiales/';
+                        if (!file_exists($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
+                        }
+                        
+                        $extension = pathinfo($_FILES['archivo']['name'], PATHINFO_EXTENSION);
+                        $nombreArchivo = uniqid() . '.' . $extension;
+                        $rutaCompleta = $uploadDir . $nombreArchivo;
+                        
+                        if (move_uploaded_file($_FILES['archivo']['tmp_name'], $rutaCompleta)) {
+                            $ruta = $nombreArchivo; // Guardamos solo el nombre del archivo
+                        } else {
+                            $_SESSION['error'] = "Error al subir el archivo";
+                            header("Location: index.php?controller=Docente&action=gestionTareas&id_materia=$id_materia");
+                            exit();
+                        }
                     } else {
-                        $_SESSION['error'] = "Error al subir el archivo";
+                        $_SESSION['error'] = "Debes subir un archivo válido";
                         header("Location: index.php?controller=Docente&action=gestionTareas&id_materia=$id_materia");
                         exit();
                     }
-                } else {
-                    $_SESSION['error'] = "Debes subir un archivo válido";
-                    header("Location: index.php?controller=Docente&action=gestionTareas&id_materia=$id_materia");
-                    exit();
                 }
-            }
-            
-            // Insertar en la base de datos
-            if ($this->model->insertarMaterial($id_materia, $titulo, $descripcion, $tipo, $ruta)) {
-                $_SESSION['mensaje'] = "Material subido correctamente";
-            } else {
-                $_SESSION['error'] = "Error al guardar el material";
-            }
-            
-            header("Location: index.php?controller=Docente&action=gestionTareas&id_materia=$id_materia");
-            exit();
+                
+                // Insertar en la base de datos
+                if ($this->model->insertarMaterial($id_materia, $titulo, $descripcion, $tipo, $ruta)) {
+                    $_SESSION['mensaje'] = "Material subido correctamente";
+                } else {
+                    $_SESSION['error'] = "Error al guardar el material";
+                }
+                
+                header("Location: index.php?controller=Docente&action=gestionTareas&id_materia=$id_materia");
+                exit();
         }
     }
 
