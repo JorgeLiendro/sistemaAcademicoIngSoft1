@@ -218,7 +218,91 @@ class DocenteModel {
         }
         return $asistencia;
     }
+////////  examen///
+    public function crearExamenCompleto($datos) {
+        try {
+            $this->db->beginTransaction(); //
 
+            // 1. Insertar la Evaluación con la configuración de tiempo
+            $sqlEval = "INSERT INTO evaluaciones (id_materia, titulo, descripcion, fecha_fin) 
+                        VALUES (?, ?, ?, ?)";
+            $stmtEval = $this->db->prepare($sqlEval);
+            $stmtEval->execute([
+                $datos['id_materia'],
+                $datos['titulo'],
+                $datos['descripcion'],
+                $datos['fecha_fin']
+            ]);
+            
+            $id_evaluacion = $this->db->lastInsertId(); //[cite: 2]
+
+            // 2. Recorrer y guardar preguntas y opciones
+            if (isset($datos['preguntas'])) {
+                foreach ($datos['preguntas'] as $indexP => $pregunta) {
+                    $sqlPreg = "INSERT INTO preguntas (evaluacion_id, enunciado) VALUES (?, ?)";
+                    $stmtPreg = $this->db->prepare($sqlPreg);
+                    $stmtPreg->execute([$id_evaluacion, $pregunta['enunciado']]);
+                    $id_pregunta = $this->db->lastInsertId();
+
+                    foreach ($pregunta['opciones'] as $indexO => $textoOpcion) {
+                        // Validar si es la respuesta correcta basada en el radio button seleccionado
+                        $es_correcta = ($indexO == $pregunta['correcta']) ? 1 : 0;
+                        
+                        $sqlOpt = "INSERT INTO opciones (pregunta_id, texto_opcion, es_correcta) 
+                                VALUES (?, ?, ?)";
+                        $stmtOpt = $this->db->prepare($sqlOpt);
+                        $stmtOpt->execute([$id_pregunta, $textoOpcion, $es_correcta]);
+                    }
+                }
+            }
+
+            $this->db->commit(); //[cite: 2]
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack(); //[cite: 2]
+            error_log("Error en crearExamenCompleto: " . $e->getMessage());
+            return false;
+        }
+    }
+    public function alternarVisibilidadNotas($id_evaluacion, $estado) {
+        try {
+            $sql = "UPDATE evaluaciones SET publicacion_forzada = ? WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            // $estado será 1 para publicar y 0 para ocultar
+            return $stmt->execute([$estado, $id_evaluacion]);
+        } catch (PDOException $e) {
+            error_log("Error en alternarVisibilidadNotas: " . $e->getMessage());
+            return false;
+        }
+    }
+
+/**
+ * Obtiene la cabecera de un examen específico
+ */
+    public function obtenerExamenPorId($id) {
+        $stmt = $this->db->prepare("SELECT * FROM evaluaciones WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+        /**
+     * Obtiene la lista de estudiantes que rindieron el examen y sus notas
+     */
+
+    public function obtenerResultadosExamen($id_evaluacion) {
+        $stmt = $this->db->prepare("
+            SELECT 
+                u.nombre_completo,
+                i.nota,
+                i.estado
+            FROM intentos i
+            JOIN estudiante e ON i.id_estudiante = e.id_estudiante
+            JOIN usuario u ON e.id_usuario = u.id_usuario
+            WHERE i.id_evaluacion = ?
+        ");
+        $stmt->execute([$id_evaluacion]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+//-------
     // --- Módulo de Evaluaciones ---
     public function obtenerEvaluacionesMateria($id_materia) {
         // Obtenemos solo el comentario y la puntuación, manteniendo el anonimato
