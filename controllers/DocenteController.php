@@ -266,7 +266,7 @@ class DocenteController {
         $reportes['estudiantes'] = is_array($reportes['estudiantes']) ? $reportes['estudiantes'] : [];
         
         // Configurar PDF
-        require_once 'vendor/tecnickcom/tcpdf/tcpdf.php';
+        require_once 'libs/tcpdf/Tcpdf.php';
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         
         // Configuración del documento
@@ -323,7 +323,7 @@ class DocenteController {
         // Tabla de estudiantes
         if (!empty($reportes['estudiantes'])) {
             $html .= '<h3>Detalle por Estudiante</h3>
-            <table>
+            <table border="1" cellpadding="5">
                 <thead>
                     <tr>
                         <th width="30%">Estudiante</th>
@@ -343,15 +343,15 @@ class DocenteController {
                 $promedio = $estudiante['promedio'] ?? 0;
                 $pendientes = $estudiante['pendientes'] ?? 0;
                 
-                $estado = ($promedio >= 7) ? 'Aprobado' : (($promedio >= 5) ? 'Regular' : 'Riesgo');
-                $color = ($estado == 'Aprobado') ? '#27ae60' : (($estado == 'Regular') ? '#f39c12' : '#e74c3c');
+                $estado = ($promedio >= 51) ? 'Aprobado' : 'Reprobado';
+                $color = ($estado == 'Aprobado') ? '#27ae60' : '#e74c3c';
                 
                 $html .= '<tr>
                     <td>' . $nombre . '</td>
-                    <td>' . $entregadas . '</td>
-                    <td>' . number_format($promedio, 2) . '</td>
-                    <td>' . $pendientes . '</td>
-                    <td style="color: ' . $color . '">' . $estado . '</td>
+                    <td align="center">' . $entregadas . '</td>
+                    <td align="center">' . number_format($promedio, 2) . '</td>
+                    <td align="center">' . $pendientes . '</td>
+                    <td style="color: ' . $color . '; font-weight:bold;" align="center">' . $estado . '</td>
                 </tr>';
             }
             
@@ -385,28 +385,42 @@ class DocenteController {
         $reportes = $this->generarReportes($id_materia);
         $materia = $this->model->obtenerMateria($id_materia);
         
-        // Configurar Excel (implementación básica)
-        header('Content-Type: application/vnd.ms-excel');
-        header('Content-Disposition: attachment; filename="reporte_' . $materia['nombre'] . '_' . date('Ymd') . '.xls"');
+        // Configurar Excel
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename="Reporte_' . $materia['nombre'] . '_' . date('Ymd') . '.xls"');
+        header("Pragma: no-cache");
+        header("Expires: 0");
         
-        echo '<table border="1">
-            <tr>
-                <th colspan="4">Reporte de Calificaciones - ' . $materia['nombre'] . '</th>
-            </tr>
-            <tr>
+        echo '<meta charset="UTF-8">';
+        echo '<table border="1">';
+        echo '<tr>
+                <th colspan="5" style="background-color:#4CAF50; color:white; font-size:16px;">
+                    Reporte de Calificaciones - ' . htmlspecialchars($materia['nombre']) . '
+                </th>
+              </tr>';
+        echo '<tr style="background-color:#f2f2f2; font-weight:bold;">
                 <th>Estudiante</th>
-                <th>Entregas</th>
-                <th>Promedio</th>
-                <th>Pendientes</th>
+                <th>Tareas Entregadas</th>
+                <th>Promedio Actual</th>
+                <th>Tareas Pendientes</th>
+                <th>Estado</th>
             </tr>';
         
-        foreach ($reportes['estudiantes'] as $estudiante) {
-            echo '<tr>
-                <td>' . $estudiante['nombre'] . '</td>
-                <td>' . $estudiante['entregadas'] . '</td>
-                <td>' . number_format($estudiante['promedio'], 2) . '</td>
-                <td>' . $estudiante['pendientes'] . '</td>
-            </tr>';
+        if (!empty($reportes['estudiantes'])) {
+            foreach ($reportes['estudiantes'] as $estudiante) {
+                $promedio = $estudiante['promedio'] ?? 0;
+                $estado = ($promedio >= 51) ? 'Aprobado' : 'Reprobado';
+                
+                echo '<tr>
+                    <td>' . htmlspecialchars($estudiante['nombre']) . '</td>
+                    <td>' . $estudiante['entregadas'] . '</td>
+                    <td>' . str_replace('.', ',', number_format($promedio, 2)) . '</td>
+                    <td>' . $estudiante['pendientes'] . '</td>
+                    <td><b>' . $estado . '</b></td>
+                </tr>';
+            }
+        } else {
+            echo '<tr><td colspan="5">No hay datos para mostrar</td></tr>';
         }
         
         echo '</table>';
@@ -426,8 +440,8 @@ class DocenteController {
     private function contarTareasCalificadas($id_materia) {
         $db = (new Database())->connect();
         $stmt = $db->prepare("SELECT COUNT(DISTINCT id_tarea) FROM entrega 
-                             WHERE calificacion IS NOT NULL AND id_tarea IN 
-                             (SELECT id_tarea FROM tarea WHERE id_materia = ?)");
+                              WHERE calificacion IS NOT NULL AND id_tarea IN 
+                              (SELECT id_tarea FROM tarea WHERE id_materia = ?)");
         $stmt->execute([$id_materia]);
         return $stmt->fetchColumn();
     }
@@ -435,7 +449,7 @@ class DocenteController {
     private function contarEstudiantesInscritos($id_materia) {
         $db = (new Database())->connect();
         $stmt = $db->prepare("SELECT COUNT(*) FROM inscripcion 
-                             WHERE id_materia = ? AND estado = 'Activa'");
+                              WHERE id_materia = ? AND estado = 'Activa'");
         $stmt->execute([$id_materia]);
         return $stmt->fetchColumn();
     }

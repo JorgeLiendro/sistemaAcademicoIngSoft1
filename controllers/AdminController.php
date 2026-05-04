@@ -89,7 +89,6 @@ class AdminController {
         exit();
     }
 
-    // ... (resto de métodos)
     public function editarUsuario() {
         if ($_SESSION['rol'] !== 'Administrador') {
             header('Location: index.php?controller=Auth&action=login');
@@ -197,7 +196,6 @@ class AdminController {
             exit();
         }
     }
-        // ... (métodos existentes)
 
     public function editarMateria() {
         if ($_SESSION['rol'] !== 'Administrador') {
@@ -252,8 +250,6 @@ class AdminController {
         }
     }
 
-    // ... (resto de métodos existentes)
-
     public function eliminarMateria() {
         if ($_SESSION['rol'] !== 'Administrador') {
             header('Location: index.php?controller=Auth&action=login');
@@ -275,15 +271,12 @@ class AdminController {
         $db = new Database();
         $conn = $db->getConnection();
         
-        // Obtener notificaciones del usuario (si es que las notificaciones son personales)
-        // Si son globales, simplemente obtén todas
         $query = "SELECT * FROM notificaciones ORDER BY fecha DESC LIMIT 10";
         $stmt = $conn->prepare($query);
         $stmt->execute();
         
         $notificaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Obtener notificaciones no leídas
         $query_unread = "SELECT COUNT(*) FROM notificaciones WHERE leida = 0";
         if (isset($_SESSION['id_usuario'])) {
             $query_unread .= " AND usuario_id = :usuario_id";
@@ -327,7 +320,6 @@ class AdminController {
         
         $notificaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Incluir la vista de notificaciones
         require_once 'views/admin/notificaciones.php';
     }
 
@@ -448,6 +440,9 @@ class AdminController {
             case 'evaluacionesDocentes':
                 $this->reporteEvaluacionesDocentes();
                 break;
+            case 'excelGeneral':
+                $this->descargarExcelGeneral();
+                break;
             default:
                 header('Location: index.php?controller=Admin&action=reportes');
                 exit();
@@ -489,6 +484,56 @@ class AdminController {
     private function reporteEvaluacionesDocentes() {
         $evaluaciones = $this->model->obtenerEstadisticasEvaluaciones();
         require_once 'views/admin/reportes/evaluacionesDocentes.php';
+    }
+
+    private function descargarExcelGeneral() {
+        $notas = $this->model->obtenerReporteCalificacionesGlobal();
+
+        // Cabeceras para forzar la descarga como archivo Excel
+        header("Content-Type: application/vnd.ms-excel; charset=utf-8");
+        header("Content-Disposition: attachment; filename=Reporte_General_Notas_" . date('Y-m-d') . ".xls");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+
+        // Construir la tabla HTML (Excel lo lee perfectamente)
+        echo '<meta charset="UTF-8">'; 
+        echo '<table border="1">';
+        echo '<tr>
+                <th colspan="9" style="font-size:18px; font-weight:bold; background-color:#e0e0e0; text-align:center;">
+                    REPORTE GENERAL DE NOTAS
+                </th>
+              </tr>';
+        echo '<tr style="background-color:#c0c0c0; font-weight:bold;">
+                <th>Carnet</th>
+                <th>Estudiante</th>
+                <th>Carrera</th>
+                <th>Materia</th>
+                <th>Trimestre 1</th>
+                <th>Trimestre 2</th>
+                <th>Trimestre 3</th>
+                <th>Nota Final</th>
+                <th>Observación</th>
+              </tr>';
+
+        if (empty($notas)) {
+            echo '<tr><td colspan="9">No hay datos de calificaciones disponibles.</td></tr>';
+        } else {
+            foreach ($notas as $row) {
+                echo '<tr>';
+                echo '<td>' . htmlspecialchars($row['carnet']) . '</td>';
+                echo '<td>' . htmlspecialchars($row['estudiante']) . '</td>';
+                echo '<td>' . htmlspecialchars($row['carrera'] ?? 'Sin asignar') . '</td>';
+                echo '<td>' . htmlspecialchars($row['materia']) . '</td>';
+                echo '<td>' . str_replace('.', ',', $row['nota_trimestre1']) . '</td>';
+                echo '<td>' . str_replace('.', ',', $row['nota_trimestre2']) . '</td>';
+                echo '<td>' . str_replace('.', ',', $row['nota_trimestre3']) . '</td>';
+                echo '<td><b>' . str_replace('.', ',', $row['nota_final']) . '</b></td>';
+                echo '<td>' . htmlspecialchars($row['observacion']) . '</td>';
+                echo '</tr>';
+            }
+        }
+        echo '</table>';
+        exit();
     }
 }
 ?>

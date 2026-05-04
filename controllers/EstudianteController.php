@@ -60,7 +60,6 @@ class EstudianteController {
         $materias = $this->model->obtenerMateriasInscritas($estudiante['id_estudiante']);
         require_once 'views/estudiante/dashboard.php';
     }
-    // Agrega estos métodos a tu controlador
 
     public function inscribirMateria() {
         if ($_SESSION['rol'] !== 'Estudiante') {
@@ -88,7 +87,6 @@ class EstudianteController {
         require_once 'views/estudiante/inscribir_materia.php';
     }
     
-
     public function guardarInscripcion() {
         if ($_SESSION['rol'] !== 'Estudiante') {
             header('Location: index.php?controller=Auth&action=login');
@@ -260,6 +258,86 @@ class EstudianteController {
             header("Location: index.php?controller=Estudiante&action=verTareas&id_materia=$id_materia&tab=evaluacion");
             exit();
         }
+    }
+
+    // NUEVA FUNCIÓN: Descargar Boletín en PDF usando TCPDF
+    public function descargarBoletinPDF() {
+        if ($_SESSION['rol'] !== 'Estudiante') {
+            header('Location: index.php?controller=Auth&action=login');
+            exit();
+        }
+
+        $id_usuario = $_SESSION['id_usuario'];
+        $db = (new Database())->connect();
+        $stmt = $db->prepare("SELECT id_estudiante FROM Estudiante WHERE id_usuario = ?");
+        $stmt->execute([$id_usuario]);
+        $estudiante = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$estudiante) {
+            $_SESSION['error'] = "No se encontró el estudiante";
+            header('Location: index.php?controller=Estudiante&action=dashboard');
+            exit();
+        }
+
+        // Obtener las notas usando la función que agregamos al modelo
+        $notas = $this->model->obtenerBoletin($estudiante['id_estudiante']);
+
+        // Incluir la librería TCPDF
+        require_once 'libs/tcpdf/Tcpdf.php';
+
+        // Crear instancia de TCPDF
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+        // Configuración básica del documento
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('Sistema Académico');
+        $pdf->SetTitle('Boletín de Notas');
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+        $pdf->AddPage();
+
+        // Título
+        $pdf->SetFont('helvetica', 'B', 16);
+        $pdf->Cell(0, 10, 'BOLETÍN OFICIAL DE CALIFICACIONES', 0, 1, 'C');
+        $pdf->SetFont('helvetica', '', 12);
+        $pdf->Cell(0, 10, 'Estudiante: ' . $_SESSION['nombre_usuario'], 0, 1, 'L');
+        $pdf->Ln(5);
+
+        // Crear la tabla HTML para las notas
+        $html = '<table border="1" cellpadding="5" cellspacing="0" style="text-align:center;">
+                    <tr style="background-color:#d9edf7; font-weight:bold;">
+                        <th width="35%">Materia</th>
+                        <th width="12%">Tri 1</th>
+                        <th width="12%">Tri 2</th>
+                        <th width="12%">Tri 3</th>
+                        <th width="12%">Final</th>
+                        <th width="17%">Estado</th>
+                    </tr>';
+
+        if (empty($notas)) {
+            $html .= '<tr><td colspan="6">No hay calificaciones registradas aún.</td></tr>';
+        } else {
+            foreach ($notas as $nota) {
+                $html .= '<tr>
+                            <td style="text-align:left;">' . htmlspecialchars($nota['materia']) . '</td>
+                            <td>' . number_format($nota['nota_trimestre1'], 2) . '</td>
+                            <td>' . number_format($nota['nota_trimestre2'], 2) . '</td>
+                            <td>' . number_format($nota['nota_trimestre3'], 2) . '</td>
+                            <td><b>' . number_format($nota['nota_final'], 2) . '</b></td>
+                            <td>' . htmlspecialchars($nota['observacion']) . '</td>
+                          </tr>';
+            }
+        }
+
+        $html .= '</table>';
+
+        // Imprimir el HTML
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        // Forzar descarga del archivo
+        $pdf->Output('Boletin_Notas_' . date('Y-m-d') . '.pdf', 'D');
+        exit();
     }
 }
 ?>

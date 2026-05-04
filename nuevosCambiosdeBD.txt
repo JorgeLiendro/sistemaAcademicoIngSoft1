@@ -1,2 +1,15 @@
 aqui añadir el sql que se debe de aumentar 
 para las nuevas funcionalidades del sistema
+-- Nueva tabla agregada para los boletines de notas (PDF y Excel)
+CREATE TABLE calificacion_final (
+    id_calificacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_estudiante INT NOT NULL,
+    id_materia INT NOT NULL,
+    nota_trimestre1 DECIMAL(5,2) DEFAULT 0.00,
+    nota_trimestre2 DECIMAL(5,2) DEFAULT 0.00,
+    nota_trimestre3 DECIMAL(5,2) DEFAULT 0.00,
+    nota_final DECIMAL(5,2) DEFAULT 0.00,
+    observacion VARCHAR(100) DEFAULT 'Sin observaciones',
+    FOREIGN KEY (id_estudiante) REFERENCES Estudiante(id_estudiante) ON DELETE CASCADE,
+    FOREIGN KEY (id_materia) REFERENCES Materia(id_materia) ON DELETE CASCADE
+);

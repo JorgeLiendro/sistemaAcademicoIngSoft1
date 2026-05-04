@@ -168,6 +168,7 @@ class EstudianteModel {
         ");
         return $stmt->execute([$id_estudiante, $id_docente, $id_materia, $puntuacion, $comentario]);
     }
+
     public function obtenerTareasPendientes($id_estudiante) {
         $stmt = $this->db->prepare("
             SELECT t.*, m.nombre as materia_nombre
@@ -195,6 +196,18 @@ class EstudianteModel {
             WHERE i.id_estudiante = ? AND i.estado = 'Activa'
             ORDER BY mat.id_material DESC
             LIMIT 5
+        ");
+        $stmt->execute([$id_estudiante]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // NUEVA FUNCIÓN: Obtener notas finales para el Boletín
+    public function obtenerBoletin($id_estudiante) {
+        $stmt = $this->db->prepare("
+            SELECT m.nombre as materia, cf.nota_trimestre1, cf.nota_trimestre2, cf.nota_trimestre3, cf.nota_final, cf.observacion
+            FROM calificacion_final cf
+            JOIN materia m ON cf.id_materia = m.id_materia
+            WHERE cf.id_estudiante = ?
         ");
         $stmt->execute([$id_estudiante]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

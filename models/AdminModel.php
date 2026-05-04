@@ -599,5 +599,28 @@ class AdminModel {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    // NUEVA FUNCIÓN: Obtener reporte global de calificaciones para Excel
+    public function obtenerReporteCalificacionesGlobal() {
+        $stmt = $this->db->query("
+            SELECT 
+                u.carnet,
+                u.nombre_completo AS estudiante,
+                c.nombre AS carrera,
+                m.nombre AS materia,
+                cf.nota_trimestre1,
+                cf.nota_trimestre2,
+                cf.nota_trimestre3,
+                cf.nota_final,
+                cf.observacion
+            FROM calificacion_final cf
+            JOIN estudiante e ON cf.id_estudiante = e.id_estudiante
+            JOIN usuario u ON e.id_usuario = u.id_usuario
+            LEFT JOIN carrera c ON e.id_carrera = c.id_carrera
+            JOIN materia m ON cf.id_materia = m.id_materia
+            ORDER BY c.nombre, u.nombre_completo, m.nombre
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 ?>
