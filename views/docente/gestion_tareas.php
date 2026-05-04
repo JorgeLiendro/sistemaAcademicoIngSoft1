@@ -461,6 +461,16 @@
 
         <!-- 7. REPORTES -->
         <div class="tab-pane fade" id="tab-reportes">
+            <!-- BOTONES DE EXPORTACIÓN AÑADIDOS AQUÍ -->
+            <div class="d-flex justify-content-end gap-3 mb-4">
+                <a href="index.php?controller=Docente&action=exportarPDF&id_materia=<?= $id_materia ?>" class="btn btn-danger rounded-pill px-4 shadow-sm">
+                    <i class="fas fa-file-pdf me-2"></i> Descargar PDF
+                </a>
+                <a href="index.php?controller=Docente&action=exportarExcel&id_materia=<?= $id_materia ?>" class="btn btn-success rounded-pill px-4 shadow-sm">
+                    <i class="fas fa-file-excel me-2"></i> Descargar Excel
+                </a>
+            </div>
+            
             <div class="row g-4 mb-4">
                 <div class="col-md-4"><div class="report-stat-card bg-pro-dark"><div class="stat-val"><?= $reportes['total_tareas'] ?? 0 ?></div><div class="stat-lbl">Tareas</div></div></div>
                 <div class="col-md-4"><div class="report-stat-card bg-pro-red"><div class="stat-val"><?= $reportes['tareas_calificadas'] ?? 0 ?></div><div class="stat-lbl">Calificadas</div></div></div>
